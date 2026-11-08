@@ -1,0 +1,180 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: API specification
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+paths:
+  /math/music:
+    get:
+      operationId: getGameMusic
+      summary: Stream the background waltz
+      responses:
+        "200":
+          description: Complete MP3 recording
+          content:
+            audio/mpeg:
+              schema:
+                type: string
+                format: binary
+        "206":
+          description: Requested byte range of the MP3
+          content:
+            audio/mpeg:
+              schema:
+                type: string
+                format: binary
+        "416":
+          description: Invalid byte range
+  /math/question:
+    post:
+      operationId: createMathQuestion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QuestionInput"
+      responses:
+        "200":
+          description: Haskell-generated puzzle
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MathQuestion"
+        "503":
+          description: Mathematics service unavailable
+  /math/answer:
+    post:
+      operationId: submitMathAnswer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnswerInput"
+      responses:
+        "200":
+          description: Haskell-validated answer and puzzle state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnswerResult"
+        "404":
+          description: Puzzle expired
+        "503":
+          description: Mathematics service unavailable
+  /math/health:
+    get:
+      operationId: mathHealth
+      responses:
+        "200":
+          description: Haskell engine is ready
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+components:
+  schemas:
+    QuestionInput:
+      type: object
+      required: [stage, ordinal, runKey]
+      properties:
+        stage: { type: integer, minimum: 1, maximum: 100000 }
+        ordinal: { type: integer, minimum: 0, maximum: 1000000 }
+        runKey: { type: string, minLength: 1, maxLength: 80 }
+    MathQuestion:
+      type: object
+      required: [id, stage, topic, purpose, prompt, choices, mechanism, explanationHint, points]
+      properties:
+        id: { type: string }
+        stage: { type: integer }
+        topic: { type: string }
+        purpose: { type: string }
+        prompt: { type: string }
+        choices:
+          type: array
+          items: { type: string }
+        mechanism: { type: string, enum: [gear, vector, matrix] }
+        explanationHint: { type: string }
+        mechanic: { type: string, enum: [slope, motion, vector, matrix] }
+        dimensions: { type: integer, enum: [2, 3] }
+        points: { type: integer, minimum: 0, maximum: 500, description: "Zero for supplementary terrain checkpoints; assessed questions award 100–500." }
+    AnswerInput:
+      type: object
+      required: [questionId, answer, attemptId]
+      properties:
+        questionId: { type: string, minLength: 1, maxLength: 160 }
+        answer: { type: string, minLength: 1, maxLength: 300 }
+        attemptId: { type: string, minLength: 1, maxLength: 160 }
+    AnswerResult:
+      type: object
+      required: [questionId, attemptId, correct, solved, points, timeBonus, feedback]
+      properties:
+        questionId: { type: string }
+        attemptId: { type: string }
+        correct: { type: boolean }
+        solved: { type: boolean }
+        points: { type: integer, minimum: 0, maximum: 500 }
+        timeBonus:
+          type: integer
+          minimum: 0
+          description: Seconds added to the run timer. Non-zero only on the attempt that first solves the puzzle (largest number in the canonical answer).
+        feedback: { type: string }
+        effect:
+          anyOf:
+            - $ref: '#/components/schemas/SlopeEffect'
+            - $ref: '#/components/schemas/MotionEffect'
+            - $ref: '#/components/schemas/VectorEffect'
+            - type: 'null'
+    SlopeEffect:
+      type: object
+      required: [kind, atX, gradient]
+      properties:
+        kind: { type: string, enum: [slope] }
+        atX: { type: number }
+        gradient: { type: number }
+    MotionEffect:
+      type: object
+      required: [kind, velocity, duration]
+      properties:
+        kind: { type: string, enum: [motion] }
+        velocity: { type: number }
+        duration: { type: number }
+    VectorEffect:
+      type: object
+      required: [kind, displacement]
+      properties:
+        kind: { type: string, enum: [vector] }
+        displacement:
+          type: array
+          minItems: 3
+          maxItems: 3
+          items: { type: number }
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+

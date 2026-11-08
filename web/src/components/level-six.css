@@ -1,0 +1,16 @@
+.l6-badge { margin:0; display:flex; gap:8px; justify-content:center; align-items:baseline; color:var(--brass-hi); font:600 11px/1.2 var(--app-font-mono); letter-spacing:.1em; text-transform:uppercase; }
+.l6-badge span { color:var(--ivory); opacity:.8; }
+.l6-badge.is-supp { color:#8fbec4; }
+.l6-vec { margin:0 auto; display:flex; align-items:center; gap:12px; }
+.l6-vec svg { flex:none; background:rgba(17,18,19,.6); border:1px solid var(--brass-deep); }
+.l6-vec figcaption { display:grid; gap:4px; font-size:14px; }
+.l6-grid { stroke:rgba(143,152,155,.18); stroke-width:.6; }
+.l6-axis { stroke:var(--ivory); stroke-width:.9; opacity:.7; }
+.l6-a { stroke:#d2b67a; stroke-width:1.8; }
+.l6-b { stroke:#8fbec4; stroke-width:1.8; }
+.l6-head-a { fill:#d2b67a; } .l6-head-b { fill:#8fbec4; }
+.l6-key-a { color:#d2b67a; } .l6-key-b { color:#8fbec4; }
+.l6-legend { position:absolute; left:2%; bottom:30%; z-index:2; pointer-events:none; display:flex; gap:6px; align-items:baseline; padding:4px 10px; background:rgba(17,18,19,.78); border-left:2px solid var(--brass); color:var(--ivory); font-size:15px; }
+.l6-sq { color:rgba(210,182,122,.8); } .l6-cos { color:#8fbec4; }
+.l6-surface { color:var(--brass-hi); } .l6-surface.is-done { font-weight:600; }
+@media (max-width:600px) { .l6-legend { font-size:12px; bottom:34%; } .l6-vec figcaption { font-size:12px; } }
