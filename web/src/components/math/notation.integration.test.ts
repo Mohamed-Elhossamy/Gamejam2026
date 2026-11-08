@@ -12,7 +12,8 @@ async function main() {
       assert(response.ok, `Haskell question failed: ${response.status}`);
       const question = await response.json() as { prompt: string; choices: string[]; points: number };
       assert.equal(question.choices.length, 4, 'every question has four choices');
-      assert(question.points >= 100 && question.points <= 500);
+      // Level 6 opens with unscored (0-point) trigonometry checkpoints.
+      assert(question.points === 0 ? stage === 6 : question.points >= 100 && question.points <= 500);
       for (const text of [question.prompt, ...question.choices]) {
         const html = typesetMath(text);
         assert(html.includes('katex-html'));

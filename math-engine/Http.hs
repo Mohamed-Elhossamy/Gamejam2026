@@ -1,4 +1,4 @@
-{-# LANGUAGE ForeignFunctionInterface #-}
+{-# LANGUAGE CPP, ForeignFunctionInterface #-}
 module Http (serve) where
 
 import Control.Concurrent (forkFinally)
@@ -23,9 +23,19 @@ foreign import ccall safe "accept" c_accept :: CInt -> Ptr a -> Ptr b -> IO CInt
 foreign import ccall safe "recv" c_recv :: CInt -> Ptr a -> CSize -> CInt -> IO CLong
 foreign import ccall safe "send" c_send :: CInt -> Ptr a -> CSize -> CInt -> IO CLong
 foreign import ccall unsafe "close" c_close :: CInt -> IO CInt
-foreign import ccall unsafe "htons" c_htons :: CUShort -> CUShort
 foreign import ccall unsafe "setsockopt" c_setsockopt :: CInt -> CInt -> CInt -> Ptr a -> CUInt -> IO CInt
-foreign import ccall unsafe "htonl" c_htonl :: CUInt -> CUInt
+
+-- Socket constants and sockaddr_in layout differ between Linux and macOS.
+solSocket, soReuseAddr, msgNoSignal :: CInt
+#if defined(darwin_HOST_OS)
+solSocket = 0xffff
+soReuseAddr = 4
+msgNoSignal = 0 -- macOS has no MSG_NOSIGNAL; GHC's runtime already ignores SIGPIPE.
+#else
+solSocket = 1
+soReuseAddr = 2
+msgNoSignal = 16384
+#endif
 
 -- A deliberately small, bounded HTTP/1.1 server, using libc sockets and GHC's
 -- standard libraries only. No runtime package downloads or interpreter fallback.
@@ -39,13 +49,20 @@ serve port handler = bracket open (void . c_close) $ \socket -> do
     open = do
       socket <- c_socket 2 1 0
       when (socket < 0) (ioError $ userError "socket failed")
-      with (1 :: CInt) $ \p -> void (c_setsockopt socket 1 2 p 4)
+      with (1 :: CInt) $ \p -> void (c_setsockopt socket solSocket soReuseAddr p 4)
       result <- allocaBytes 16 $ \address -> do
         fillBytes address 0 16
-        pokeByteOff address 0 (2 :: CUShort)
-        pokeByteOff address 2 (c_htons $ fromIntegral port)
-        -- Bind the private child server to loopback, not the public interface.
-        pokeByteOff address 4 (c_htonl 0x7f000001)
+#if defined(darwin_HOST_OS)
+        pokeByteOff address 0 (16 :: Word8) -- sin_len
+        pokeByteOff address 1 (2 :: Word8)  -- sin_family = AF_INET
+#else
+        pokeByteOff address 0 (2 :: CUShort) -- sin_family = AF_INET
+#endif
+        -- Port and address in network byte order, written byte by byte.
+        pokeByteOff address 2 (fromIntegral (port `div` 256) :: Word8)
+        pokeByteOff address 3 (fromIntegral (port `mod` 256) :: Word8)
+        -- Bind the private child server to loopback (127.0.0.1), not the public interface.
+        pokeArray (address `plusPtr` 4) [127, 0, 0, 1 :: Word8]
         c_bind socket address 16
       when (result < 0) $ void (c_close socket) >> ioError (userError "math port bind failed")
       ready <- c_listen socket 64
@@ -106,6 +123,6 @@ sendAll client bytes = B.useAsCStringLen bytes $ \(ptr,len) -> send ptr len
   where
     send _ 0 = pure ()
     send ptr len = do
-      sent <- c_send client ptr (fromIntegral len) 16384 -- MSG_NOSIGNAL
+      sent <- c_send client ptr (fromIntegral len) msgNoSignal
       when (sent <= 0) (ioError $ userError "Client disconnected")
       send (ptr `plusPtr` fromIntegral sent) (len - fromIntegral sent)

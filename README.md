@@ -47,7 +47,7 @@ pnpm dev
 
 `pnpm dev` builds the Haskell engine, starts the server on port 8080 and the game on http://localhost:5173.
 
-The Haskell engine talks to Linux sockets directly, so it runs on Linux or WSL. On macOS, run it inside a Linux container or VM.
+Works on macOS, Linux and WSL. On a Mac, install the tools with `brew install node pnpm ghc`.
 
 ## Tests
 

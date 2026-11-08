@@ -4,7 +4,7 @@ Build with `sh math-engine/build.sh` (needs GHC on your PATH). The server build
 runs this automatically; the compiled executable in `dist/` is not committed.
 
 The service is a real threaded Haskell HTTP server. It uses the GHC standard
-libraries and Linux libc sockets instead of depending on a network-time Hackage
+libraries and libc sockets (Linux and macOS) instead of depending on a network-time Hackage
 package installation. Its private loopback listener is supervised by the Express
 server in both development and production. The public endpoints are defined in
 `api/spec/openapi.yaml` under `/api/math/*`.
