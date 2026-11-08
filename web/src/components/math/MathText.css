@@ -1,0 +1,10 @@
+.math-text { min-width: 0; max-width: 100%; white-space: normal; }
+.math-expression {
+  display: inline-block; max-width: 100%; vertical-align: middle;
+  overflow-x: auto; overflow-y: hidden; padding: .14em .06em;
+  font-style: normal; text-transform: none; letter-spacing: normal;
+}
+.math-expression .katex { font-size: 1.06em; color: inherit; }
+.math-unavailable { color: #d7a28d; font: inherit; }
+.lx-choice .math-text { flex: 1; }
+.sm-eq .math-expression { max-width: none; overflow: visible; }
