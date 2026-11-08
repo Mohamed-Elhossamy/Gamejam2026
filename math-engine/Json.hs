@@ -1,10 +1,11 @@
-module Json (Json(..), encode, decode, field, string, number) where
+module Json (Json(..), encode, decode, field, string, number,
+             Parser(..), satisfy, char, eof) where
 
+import Control.Applicative (Alternative(..))
+import Control.Monad (ap, replicateM)
 import Data.Char (chr, isSpace)
 import Data.List (intercalate)
 import Numeric (readHex, showHex)
-import Text.ParserCombinators.ReadP hiding (string)
-import qualified Text.ParserCombinators.ReadP as P
 import Text.Read (readMaybe)
 
 data Json = Object [(String, Json)] | Array [Json] | String String
@@ -43,24 +44,70 @@ quote s = "\"" ++ concatMap escape s ++ "\""
              | otherwise = [c]
       where h = showHex (fromEnum c) ""
 
-decode :: String -> Maybe Json
-decode s = case readP_to_S (spaces *> value <* spaces <* eof) s of
-  [] -> Nothing
-  xs -> Just (fst (last xs))
+-- | Our own parser monad. A parser is a function from the remaining input to
+-- either failure ('Nothing') or a result plus the input it did not consume.
+newtype Parser a = Parser { runParser :: String -> Maybe (a, String) }
 
-spaces :: ReadP ()
-spaces = skipMany (satisfy isSpace)
-symbol :: Char -> ReadP Char
+instance Functor Parser where
+  fmap f (Parser p) = Parser $ \s -> case p s of
+    Nothing -> Nothing
+    Just (a, rest) -> Just (f a, rest)
+
+instance Applicative Parser where
+  pure a = Parser $ \s -> Just (a, s)
+  (<*>) = ap
+
+-- | Bind runs the first parser, then feeds its result and leftover input to
+-- the next one. Any failure stops the whole chain.
+instance Monad Parser where
+  Parser p >>= f = Parser $ \s -> case p s of
+    Nothing -> Nothing
+    Just (a, rest) -> runParser (f a) rest
+
+-- | Ordered choice: try the left parser; only if it fails, try the right one
+-- on the same input. 'many' and 'some' come free from this instance.
+instance Alternative Parser where
+  empty = Parser (const Nothing)
+  Parser p <|> Parser q = Parser $ \s -> p s <|> q s
+
+satisfy :: (Char -> Bool) -> Parser Char
+satisfy ok = Parser $ \s -> case s of
+  c : rest | ok c -> Just (c, rest)
+  _ -> Nothing
+
+char :: Char -> Parser Char
+char c = satisfy (== c)
+
+keyword :: String -> Parser String
+keyword = traverse char
+
+eof :: Parser ()
+eof = Parser $ \s -> if null s then Just ((), s) else Nothing
+
+between :: Parser open -> Parser close -> Parser a -> Parser a
+between open close p = open *> p <* close
+
+sepBy :: Parser a -> Parser sep -> Parser [a]
+sepBy p sep = ((:) <$> p <*> many (sep *> p)) <|> pure []
+
+decode :: String -> Maybe Json
+decode s = fst <$> runParser (spaces *> value <* spaces <* eof) s
+
+spaces :: Parser ()
+spaces = () <$ many (satisfy isSpace)
+symbol :: Char -> Parser Char
 symbol c = spaces *> char c <* spaces
 
-value :: ReadP Json
+-- JSON values start with different characters, so trying the alternatives
+-- in order never hides a valid parse.
+value :: Parser Json
 value = (Object <$> between (symbol '{') (symbol '}') (sepBy pair (symbol ',')))
-    +++ (Array <$> between (symbol '[') (symbol ']') (sepBy value (symbol ',')))
-    +++ (String <$> literal)
-    +++ (Boolean True <$ P.string "true")
-    +++ (Boolean False <$ P.string "false")
-    +++ (Null <$ P.string "null")
-    +++ numeric
+    <|> (Array <$> between (symbol '[') (symbol ']') (sepBy value (symbol ',')))
+    <|> (String <$> literal)
+    <|> (Boolean True <$ keyword "true")
+    <|> (Boolean False <$ keyword "false")
+    <|> (Null <$ keyword "null")
+    <|> numeric
   where
     pair = do
       k <- literal
@@ -68,22 +115,22 @@ value = (Object <$> between (symbol '{') (symbol '}') (sepBy pair (symbol ',')))
       v <- value
       pure (k,v)
     numeric = do
-      s <- munch1 (`elem` "-+0123456789.eE")
+      s <- some (satisfy (`elem` "-+0123456789.eE"))
       case readMaybe s of
         Just n | not (isNaN n || isInfinite n) -> pure (Number n)
-        _ -> pfail
+        _ -> empty
 
-literal :: ReadP String
+literal :: Parser String
 literal = spaces *> between (char '"') (char '"') (many charValue) <* spaces
   where
     charValue = satisfy (\c -> c /= '"' && c /= '\\' && c >= ' ')
-      +++ (char '\\' *> escaped)
-    escaped = choice [char '"' >> pure '"', char '\\' >> pure '\\', char '/' >> pure '/',
-      char 'n' >> pure '\n', char 'r' >> pure '\r', char 't' >> pure '\t',
-      char 'b' >> pure '\b', char 'f' >> pure '\f', unicode]
+      <|> (char '\\' *> escaped)
+    escaped = ('"' <$ char '"') <|> ('\\' <$ char '\\') <|> ('/' <$ char '/')
+      <|> ('\n' <$ char 'n') <|> ('\r' <$ char 'r') <|> ('\t' <$ char 't')
+      <|> ('\b' <$ char 'b') <|> ('\f' <$ char 'f') <|> unicode
     unicode = do
       _ <- char 'u'
-      digits <- count 4 (satisfy (`elem` "0123456789abcdefABCDEF"))
+      digits <- replicateM 4 (satisfy (`elem` "0123456789abcdefABCDEF"))
       case readHex digits of
         [(n,"")] -> pure (chr n)
-        _ -> pfail
+        _ -> empty
