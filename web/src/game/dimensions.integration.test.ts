@@ -19,7 +19,7 @@ async function waitFor(condition: () => boolean) {
 }
 /** Run left until a checkpoint opens its shared question panel. */
 async function approach() {
-  for (let frame = 0; frame < 130 && game.view.run.mode === 'intro'; frame++) step();
+  for (let frame = 0; frame < 600 && game.view.run.mode === 'intro'; frame++) step();
   game.actions.control('left', true);
   for (let frame = 0; frame < 1500 && game.view.run.mode === 'playing'; frame++) {
     const x = game.view.run.player.x;
