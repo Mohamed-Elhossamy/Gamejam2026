@@ -45,7 +45,7 @@ pnpm install
 pnpm dev
 ```
 
-`pnpm dev` builds the Haskell engine, starts the server on port 8080 and the game on http://localhost:5173.
+`pnpm dev` installs dependencies if needed, builds the Haskell engine, starts the server on port 8080 and opens the game at http://localhost:5173. It stops with a clear message if a tool is missing, a port is taken or the server fails to start.
 
 Works on macOS, Linux and WSL. On a Mac, install the tools with `brew install node pnpm ghc`.
 
