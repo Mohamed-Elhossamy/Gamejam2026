@@ -1,3 +1,5 @@
+import { existsSync } from "node:fs";
+import path from "node:path";
 import express, { type Express } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
@@ -30,5 +32,13 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use("/api", router);
+
+// In production the built game is served from here too, so one URL runs everything.
+// Resolved from the bundled dist/index.mjs, like the maths engine executable.
+const webDir = path.resolve(import.meta.dirname, "../../web/dist/public");
+if (existsSync(webDir)) {
+  app.use(express.static(webDir));
+  app.get(/^(?!\/api\/).*/, (_req, res) => res.sendFile(path.join(webDir, "index.html")));
+}
 
 export default app;

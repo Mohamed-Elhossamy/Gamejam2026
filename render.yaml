@@ -1,0 +1,6 @@
+services:
+  - type: web
+    name: lambda-rush
+    runtime: docker
+    plan: free
+    healthCheckPath: /api/math/health

@@ -49,6 +49,10 @@ pnpm dev
 
 Works on macOS, Linux and WSL. On a Mac, install the tools with `brew install node pnpm ghc`.
 
+## Putting it online
+
+The `Dockerfile` builds everything into one container: the server runs the Haskell engine and also serves the game, so one URL works for players. `render.yaml` deploys it to Render's free tier: in Render choose New → Blueprint and pick this repo. Free services sleep after 15 minutes without visitors, so the first visit after that takes about a minute to load.
+
 ## Tests
 
 ```bash
